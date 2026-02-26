@@ -101,6 +101,7 @@ jobs:
           PR_BRANCH: ${{ steps.out.outputs.branch }}
           PR_TITLE: ${{ steps.out.outputs.commit_message }}
           ISSUE_NUM: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
         run: |
           title=$(echo "$PR_TITLE" | head -n1 | tr -d '\n')
           body="## Autofix PR
@@ -108,4 +109,22 @@ jobs:
           This PR was created by the autofix agent for issue #${ISSUE_NUM}.
 
           Fixes #${ISSUE_NUM}"
-          gh pr create --base main --head "$PR_BRANCH" --title "$title" --body "$body"
+          if gh pr create --repo "$REPO" --base main --head "$PR_BRANCH" --title "$title" --body "$body"; then
+            echo "PR created with gh"
+          else
+            echo "gh failed, trying REST API..."
+            body_json=$(jq -n --arg t "$title" --arg b "$body" --arg head "$PR_BRANCH" '{title:$t, body:$b, head:$head, base:"main"}')
+            resp=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -d "$body_json" \
+              "https://api.github.com/repos/$REPO/pulls")
+            http_code=$(echo "$resp" | tail -n1)
+            if [ "$http_code" = "201" ]; then
+              echo "PR created via REST API"
+            else
+              echo "REST API response ($http_code):"
+              echo "$resp" | head -n -1
+              exit 1
+            fi
+          fi
