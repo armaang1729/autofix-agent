@@ -20,6 +20,11 @@ If the agent cannot produce a safe fix (e.g. not enough context), it comments on
 - Repo on GitHub (or GitHub Enterprise).
 - Default branch `main` (or change `base: 'main'` in `.github/workflows/autofix-on-issue.yml`).
 
+**If you see "GitHub Actions is not permitted to create or approve pull requests":**
+
+- **Option A:** In the repo go to **Settings → Actions → General**. Under "Workflow permissions", select **Read and write permissions** and check **Allow GitHub Actions to create and approve pull requests**. Save.
+- **Option B:** Use a Personal Access Token (PAT) with `repo` scope. Create a secret named **AUTOFIX_GITHUB_TOKEN** with the PAT value. The workflow will use it for pushing and creating PRs when present.
+
 ### 2. LLM API (required for the agent)
 
 The workflow uses an OpenAI-compatible API to generate fixes.
