@@ -1,0 +1,115 @@
+# AI-powered code review for every PR (autofix or human).
+# Posts suggestions as a PR comment. Requires OPENAI_API_KEY secret.
+name: Review PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Get PR diff
+        id: diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr diff ${{ github.event.pull_request.number }} > pr.diff || true
+          if [ ! -s pr.diff ]; then
+            echo "No diff available"
+            echo "has_diff=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_diff=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run review agent
+        if: steps.diff.outputs.has_diff == 'true'
+        id: review
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_DIFF: ${{ '$(cat pr.diff)' }}
+          REPO: ${{ github.repository }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_API_VERSION: ${{ secrets.OPENAI_API_VERSION }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          RUNNER_TEMP: ${{ runner.temp }}
+        run: |
+          export PR_DIFF="$(cat pr.diff)"
+          node agent/review.mjs
+
+      - name: Read review output
+        if: steps.diff.outputs.has_diff == 'true'
+        id: out
+        run: |
+          OUT="${{ runner.temp }}/review-output.json"
+          if [ ! -f "$OUT" ]; then
+            echo "No review output"
+            exit 0
+          fi
+          BODY=$(jq -r .body "$OUT")
+          APPROVED=$(jq -r .approved "$OUT")
+          echo "approved=$APPROVED" >> $GITHUB_OUTPUT
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post review comment
+        if: steps.diff.outputs.has_diff == 'true' && steps.out.outputs.body != ''
+        uses: actions/github-script@v7
+        env:
+          REVIEW_BODY: ${{ steps.out.outputs.body }}
+          APPROVED: ${{ steps.out.outputs.approved }}
+        with:
+          script: |
+            const body = process.env.REVIEW_BODY;
+            const approved = process.env.APPROVED === 'true';
+            
+            // Check if we already posted a review comment on this commit
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number
+            });
+            
+            const existingComment = comments.data.find(c => 
+              c.user.login === 'github-actions[bot]' && 
+              c.body.includes('🤖 AI Code Review')
+            );
+            
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body + '\n\n_Updated for commit ' + context.payload.pull_request.head.sha.substring(0, 7) + '_'
+              });
+              console.log('Updated existing review comment');
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: body
+              });
+              console.log('Created new review comment');
+            }

@@ -4,12 +4,26 @@ This repo is **AI-first**: when an issue is logged, an agent analyzes it, propos
 
 ## How it works
 
+### Autofix (Issue → PR)
+
 1. **Trigger** – A GitHub issue is opened (or labeled `autofix`).
 2. **Analysis** – The agent reads the issue and the repo file list, then calls an LLM to propose minimal file changes.
 3. **Solution** – The agent writes the suggested changes to the repo.
 4. **Delivery** – A branch is created, changes are committed and pushed, and a PR is opened that references the issue.
 
 If the agent cannot produce a safe fix (e.g. not enough context), it comments on the issue instead of opening a PR.
+
+### Auto-Review (PR → Review Comments)
+
+1. **Trigger** – A PR is opened, updated, or reopened (any PR, whether created by autofix or humans).
+2. **Analysis** – The review agent fetches the PR diff and sends it to the LLM for analysis.
+3. **Review** – The agent posts a comment with suggestions for improvements, covering:
+   - Code quality and best practices
+   - Potential bugs or edge cases
+   - Security concerns
+   - Performance implications
+   - Readability and maintainability
+4. **Updates** – If new commits are pushed to the PR, the review is updated automatically.
 
 ---
 
@@ -88,8 +102,10 @@ if: (github.event.action == 'labeled' && contains(github.event.label.name, 'auto
 
 ## Development
 
-- **Agent script**: `agent/index.mjs` – runs in GitHub Actions, reads env (issue, API key), calls the LLM, writes file changes and metadata.
-- **Workflow**: `.github/workflows/autofix-on-issue.yml` – checkout, run agent, commit, push, open PR or comment on issue.
+- **Autofix agent**: `agent/index.mjs` – runs in GitHub Actions, reads env (issue, API key), calls the LLM, writes file changes and metadata.
+- **Review agent**: `agent/review.mjs` – analyzes PR diffs and generates review suggestions.
+- **Autofix workflow**: `.github/workflows/autofix-on-issue.yml` – checkout, run agent, commit, push, open PR or comment on issue.
+- **Review workflow**: `.github/workflows/review-pr.yml` – fetches PR diff, runs review agent, posts review comment.
 - **Constitution**: `.specify/memory/constitution.md` – high-level principles for the agent and contributors.
 
 To test the agent locally (Node 18+):
