@@ -23,7 +23,7 @@ If the agent cannot produce a safe fix (e.g. not enough context), it comments on
 **If you see "GitHub Actions is not permitted to create or approve pull requests":**
 
 - **Option A:** In the repo go to **Settings → Actions → General**. Under "Workflow permissions", select **Read and write permissions** and check **Allow GitHub Actions to create and approve pull requests**. Save.
-- **Option B:** Use a Personal Access Token (PAT) with `repo` scope. Create a secret named **AUTOFIX_GITHUB_TOKEN** with the PAT value. The workflow will use it for pushing and creating PRs when present.
+- **Option B:** Use a Personal Access Token (PAT) with `repo` scope. Create a secret named **AUTOFIX_GITHUB_TOKEN** with the PAT value. The workflow will use it for pushing and creating PRs when present. If you get **404 Not Found** when creating the PR: use a **classic** PAT with **repo** scope; if the repo is in an org with SSO, go to the token in GitHub → **Configure SSO** and authorize it for that org.
 
 ### 2. LLM API (required for the agent)
 
