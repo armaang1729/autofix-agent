@@ -1,0 +1,12 @@
+---
+description: General code and PR standards for the project
+alwaysApply: true
+---
+
+# Code & PR Standards
+
+- Keep changes minimal and scoped to the issue.
+- Preserve existing style (indentation, quotes, naming) in the codebase.
+- Add or update tests when fixing bugs or adding behavior.
+- PR titles should be clear; prefer "Fix: <short description>" or "Add: <feature>".
+- Commit messages: start with a verb (Fix, Add, Update, Refactor) and reference the issue when applicable (e.g., "Fix login redirect (#42)").

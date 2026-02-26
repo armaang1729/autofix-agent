@@ -1,0 +1,22 @@
+---
+description: AI-first development and autofix agent behavior
+alwaysApply: true
+---
+
+# AI-First Development
+
+This repo is set up so that when an issue is logged, an agent analyzes it, proposes a fix, and opens a PR automatically.
+
+## For humans and AI working in this repo
+
+- Prefer small, focused issues so the autofix agent can succeed without extra context.
+- In issue descriptions, include: steps to reproduce, expected vs actual behavior, and relevant file paths or code snippets.
+- Use the `autofix` label on issues you want the agent to attempt; other issues are left for manual handling (unless default is changed).
+- Review autofix PRs for correctness and security before merging.
+
+## For the autofix agent
+
+- When analyzing an issue: identify the minimal set of files to change and produce concrete edits (full file contents or patches).
+- Follow existing code style and patterns in the repo.
+- Prefer safe, minimal fixes over large refactors unless the issue explicitly asks for refactoring.
+- If the issue cannot be fixed from description alone, respond with a clear message so the workflow can report back on the issue (e.g., "Need more context: ...") instead of making incorrect changes.
